@@ -3,63 +3,107 @@ import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
 import os
+from datetime import datetime
 
-# 📌 EMAIL
+# 📧 EMAIL SETTINGS
 sender = "mathapatishivayya45@gmail.com"
 receiver = "mathapatishivayya45@gmail.com"
 password = os.environ.get("EMAIL_PASS")
 
-# 📌 INDEX (NIFTY)
-symbol = "^NSEI"
+# 📊 STOCK LIST
+stocks = [
+    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
+    "ICICIBANK.NS", "SBIN.NS", "ITC.NS", "LT.NS"
+]
 
-data = yf.download(symbol, period="5d", interval="5m")
+results = []
 
-# 📊 INDICATORS
-data['50DMA'] = data['Close'].rolling(50).mean()
+for stock in stocks:
+    try:
+        print(f"Checking: {stock}")
 
-delta = data['Close'].diff()
-gain = delta.clip(lower=0)
-loss = -delta.clip(upper=0)
+        data = yf.download(stock, period="3mo", interval="1d")
 
-avg_gain = gain.rolling(14).mean()
-avg_loss = loss.rolling(14).mean()
+        if data.empty or len(data) < 60:
+            continue
 
-rs = avg_gain / avg_loss
-data['RSI'] = 100 - (100 / (1 + rs))
+        # 📈 INDICATORS
+        data['50DMA'] = data['Close'].rolling(50).mean()
+        data['200DMA'] = data['Close'].rolling(200).mean()
 
-# 📌 LAST VALUE
-latest = data.iloc[-1]
+        delta = data['Close'].diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
 
-rsi = latest['RSI']
-price = latest['Close']
-dma = latest['50DMA']
+        avg_gain = gain.rolling(14).mean()
+        avg_loss = loss.rolling(14).mean()
 
-signal = ""
+        rs = avg_gain / avg_loss
+        data['RSI'] = 100 - (100 / (1 + rs))
 
-# 🎯 SIGNAL LOGIC
-if pd.notna(rsi) and pd.notna(dma):
+        data['Vol_Avg'] = data['Volume'].rolling(10).mean()
 
-    if rsi < 30 and price > dma:
-        signal = f"📈 BUY CALL\nPrice: {round(price,2)}\nRSI: {round(rsi,2)}"
+        latest = data.iloc[-1]
 
-    elif rsi > 70 and price < dma:
-        signal = f"📉 BUY PUT\nPrice: {round(price,2)}\nRSI: {round(rsi,2)}"
+        rsi = float(latest['RSI'])
+        price = float(latest['Close'])
+        dma50 = float(latest['50DMA'])
+        dma200 = float(latest['200DMA'])
+        vol = float(latest['Volume'])
+        vol_avg = float(latest['Vol_Avg'])
 
-    else:
-        signal = "❌ No Clear Option Signal"
+        # 📊 TREND
+        trend = "UPTREND 📈" if price > dma200 else "DOWNTREND 📉"
 
-# 📩 EMAIL
-msg = MIMEText(signal)
-msg['Subject'] = "⚡ NIFTY Option Signal"
+        # 📌 SIGNAL LOGIC
+        signal = "NO SIGNAL ❌"
+
+        if pd.notna(rsi) and pd.notna(dma50) and pd.notna(vol_avg):
+
+            if (rsi < 30) and (price > dma50) and (vol > vol_avg):
+                signal = "BUY 🔥"
+
+            elif (rsi > 70) and (price < dma50):
+                signal = "SELL ⚠️"
+
+        # 📋 FULL INFO OUTPUT
+        result = f"""
+🔹 {stock}
+Price: ₹{round(price,2)}
+RSI: {round(rsi,2)}
+50DMA: {round(dma50,2)}
+200DMA: {round(dma200,2)}
+Volume: {int(vol)}
+Avg Vol: {int(vol_avg)}
+Trend: {trend}
+Signal: {signal}
+-------------------------
+"""
+        results.append(result)
+
+    except Exception as e:
+        results.append(f"{stock} ❌ Error: {e}")
+
+# 📩 EMAIL CONTENT
+final_message = f"""
+📊 STOCK SCANNER REPORT
+🕒 {datetime.now()}
+
+{''.join(results)}
+"""
+
+msg = MIMEText(final_message)
+msg['Subject'] = "🔥 Daily Stock Report"
 msg['From'] = sender
 msg['To'] = receiver
 
+# 📧 SEND EMAIL
 try:
     server = smtplib.SMTP("smtp.gmail.com", 587)
     server.starttls()
     server.login(sender, password)
     server.sendmail(sender, receiver, msg.as_string())
     server.quit()
-    print("✅ Signal Sent")
+    print("✅ Email Sent Successfully")
 except Exception as e:
-    print("❌ Error:", e)
+    print("❌ Email Error:", e)
