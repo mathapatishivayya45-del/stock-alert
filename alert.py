@@ -34,7 +34,14 @@ for stock in stocks:
 
     latest = data.iloc[-1]
 
-    if latest['RSI'] < 30:
+    rsi_value = latest['RSI'].iloc[-1]
+
+if rsi_value < 30:
+    signal = "BUY"
+elif rsi_value > 70:
+    signal = "SELL"
+else:
+    signal = "HOLD"
         signal = "BUY"
     elif latest['RSI'] > 70:
         signal = "SELL"
