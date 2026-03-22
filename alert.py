@@ -1,62 +1,55 @@
 import yfinance as yf
 import pandas as pd
-import smtplib
-from email.message import EmailMessage
 import os
+import smtplib
 
-# EMAIL CONFIG
-sender = "mathapatishivayya45@gmail.com"
-receiver = "mathapatishivayya45@gmail.com"
-password = os.getenv("enit jinx evas ftdp")
+stock = "HINDUNILVR.NS"
 
-# STOCK LIST
-stocks = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"]
+data = yf.download(stock, period="3mo", interval="1d")
 
-results = []
+# RSI calculation
+delta = data['Close'].diff()
+gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
 
-for stock in stocks:
-    data = yf.download(stock, period="3mo", interval="1d", progress=False)
+rs = gain / loss
+data['RSI'] = 100 - (100 / (1 + rs))
 
-    if data.empty:
-        continue
+# latest value
+latest_rsi = data['RSI'].iloc[-1]
+latest_price = data['Close'].iloc[-1]
 
-    data['MA20'] = data['Close'].rolling(20).mean()
-
-    delta = data['Close'].diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-
-    avg_gain = gain.rolling(14).mean()
-    avg_loss = loss.rolling(14).mean()
-
-    rs = avg_gain / avg_loss
-    data['RSI'] = 100 - (100 / (1 + rs))
-
-    latest = data.iloc[-1]
-
-    rsi_value = latest['RSI'].iloc[-1]
-
-if rsi_value < 30:
+# signal
+if latest_rsi < 30:
     signal = "BUY"
-elif rsi_value > 70:
+elif latest_rsi > 70:
     signal = "SELL"
 else:
     signal = "HOLD"
-        signal = "BUY"
-    elif latest['RSI'] > 70:
-        signal = "SELL"
-    else:
-        signal = "HOLD"
 
-    results.append(f"{stock} → {signal} | RSI: {round(latest['RSI'],2)}")
+print("RSI:", latest_rsi)
+print("Signal:", signal)
 
-# EMAIL SEND
-msg = EmailMessage()
-msg.set_content("\n".join(results))
-msg['Subject'] = "Stock Alert"
-msg['From'] = sender
-msg['To'] = receiver
+# EMAIL PART
+sender = "mathapatishivayya45@gmail.com"
+receiver = "mathapatishivayya45@gmail.com"
+password = os.environ.get("enit jinx evas ftdp")
 
-with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-    smtp.login(sender, password)
-    smtp.send_message(msg)
+message = f"""Subject: Stock Alert
+
+Stock: {stock}
+Price: {latest_price}
+RSI: {latest_rsi}
+Signal: {signal}
+"""
+
+try:
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(sender, password)
+    server.sendmail(sender, receiver, message)
+    server.quit()
+    print("Email sent")
+
+except Exception as e:
+    print("Error:", e)
