@@ -8,10 +8,12 @@ from datetime import datetime
 EMAIL = "mathapatishivayya45@gmail.com"
 PASSWORD = os.environ.get("EMAIL_PASS")
 
+# Fetch NIFTY data
 data = yf.download("^NSEI", period="1d", interval="5m")
 
-if data.empty or len(data) < 30:
-    msg = "No data"
+# Market closed check
+if data.empty or len(data) < 20:
+    msg = "❌ Market Closed or No Data"
 else:
     # VWAP
     data['VWAP'] = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
@@ -44,41 +46,29 @@ else:
     sl = "-"
     target = "-"
 
-    # 🔥 STRONG CALL
-    if (price > vwap and 
-        rsi > 55 and 
-        price > high and 
-        volume > vol_avg and 
-        price > open_price):
-
+    # CALL SIGNAL
+    if (price > vwap and rsi > 55 and price > high and volume > vol_avg and price > open_price):
         entry = round(price,2)
         sl = round(price * 0.92,2)
         target = round(price * 1.12,2)
-
-        signal = f"""📈 STRONG CALL
+        signal = f"""📈 CALL SIGNAL
 Entry: {entry}
 SL: {sl}
 Target: {target}
 RSI: {round(rsi,1)}"""
 
-    # 🔥 STRONG PUT
-    elif (price < vwap and 
-          rsi < 45 and 
-          price < low and 
-          volume > vol_avg and 
-          price < open_price):
-
+    # PUT SIGNAL
+    elif (price < vwap and rsi < 45 and price < low and volume > vol_avg and price < open_price):
         entry = round(price,2)
         sl = round(price * 0.92,2)
         target = round(price * 1.12,2)
-
-        signal = f"""📉 STRONG PUT
+        signal = f"""📉 PUT SIGNAL
 Entry: {entry}
 SL: {sl}
 Target: {target}
 RSI: {round(rsi,1)}"""
 
-    msg = f"""⚡ HIGH ACCURACY OPTION SIGNAL
+    msg = f"""🔥 OPTION SIGNAL
 
 🕒 {datetime.now()}
 
@@ -89,9 +79,9 @@ Volume: {int(volume)}
 {signal}
 """
 
-# EMAIL SEND
+# SEND EMAIL
 message = MIMEText(msg)
-message['Subject'] = "🔥 High Accuracy Option Signal"
+message['Subject'] = "🔥 Option Signal"
 message['From'] = EMAIL
 message['To'] = EMAIL
 
@@ -100,7 +90,3 @@ server.starttls()
 server.login(EMAIL, PASSWORD)
 server.sendmail(EMAIL, EMAIL, message.as_string())
 server.quit()
-on:
-  schedule:
-    - cron: '50 3 * * *'   # 9:20 AM IST
-  workflow_dispatch:
