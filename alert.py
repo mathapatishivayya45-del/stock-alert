@@ -100,3 +100,7 @@ server.starttls()
 server.login(EMAIL, PASSWORD)
 server.sendmail(EMAIL, EMAIL, message.as_string())
 server.quit()
+on:
+  schedule:
+    - cron: '50 3 * * *'   # 9:20 AM IST
+  workflow_dispatch:
