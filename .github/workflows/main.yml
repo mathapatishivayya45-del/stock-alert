@@ -2,7 +2,7 @@ name: Stock Alert
 
 on:
   schedule:
-    - cron: '30 3 * * *'   # Daily 9:00 AM IST
+    - cron: '50 3 * * *'   # 9:20 AM IST
   workflow_dispatch:
 
 jobs:
