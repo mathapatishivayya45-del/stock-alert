@@ -1,109 +1,90 @@
 import yfinance as yf
 import pandas as pd
-import smtplib
-from email.mime.text import MIMEText
-import os
+import requests
 from datetime import datetime
 
-# 📧 EMAIL SETTINGS
-sender = "mathapatishivayya45@gmail.com"
-receiver = "mathapatishivayya45@gmail.com"
-password = os.environ.get("EMAIL_PASS")
+# ===== TELEGRAM CONFIG =====
+TOKEN = "YOUR_BOT_TOKEN"
+CHAT_ID = "YOUR_CHAT_ID"
 
-# 📊 STOCK LIST
-stocks = [
-    "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
-    "ICICIBANK.NS", "SBIN.NS", "ITC.NS", "LT.NS"
-]
+def send_telegram(msg):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-results = []
+# ===== DATA =====
+data = yf.download("^NSEI", period="1d", interval="5m")
 
-for stock in stocks:
-    try:
-        print(f"Checking: {stock}")
+if data.empty or len(data) < 20:
+    print("No data")
+    exit()
 
-        data = yf.download(stock, period="3mo", interval="1d")
+# ===== VWAP =====
+data['VWAP'] = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()
 
-        if data.empty or len(data) < 60:
-            continue
+# ===== RSI =====
+delta = data['Close'].diff()
+gain = delta.clip(lower=0)
+loss = -delta.clip(upper=0)
 
-        # 📈 INDICATORS
-        data['50DMA'] = data['Close'].rolling(50).mean()
-        data['200DMA'] = data['Close'].rolling(200).mean()
+rs = gain.rolling(14).mean() / loss.rolling(14).mean()
+data['RSI'] = 100 - (100 / (1 + rs))
 
-        delta = data['Close'].diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
+# ===== LAST VALUES =====
+latest = data.iloc[-1]
+prev = data.iloc[-2]
 
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
+price = float(latest['Close'])
+vwap = float(latest['VWAP'])
+rsi = float(latest['RSI'])
 
-        rs = avg_gain / avg_loss
-        data['RSI'] = 100 - (100 / (1 + rs))
+high = float(prev['High'])
+low = float(prev['Low'])
 
-        data['Vol_Avg'] = data['Volume'].rolling(10).mean()
+signal = "❌ No Trade"
 
-        latest = data.iloc[-1]
+entry = "-"
+sl = "-"
+target = "-"
 
-        rsi = float(latest['RSI'])
-        price = float(latest['Close'])
-        dma50 = float(latest['50DMA'])
-        dma200 = float(latest['200DMA'])
-        vol = float(latest['Volume'])
-        vol_avg = float(latest['Vol_Avg'])
+# ===== STRATEGY =====
 
-        # 📊 TREND
-        trend = "UPTREND 📈" if price > dma200 else "DOWNTREND 📉"
+# 📈 CALL
+if price > vwap and rsi > 55 and price > high:
+    entry = round(price, 2)
+    sl = round(price * 0.90, 2)
+    target = round(price * 1.15, 2)
 
-        # 📌 SIGNAL LOGIC
-        signal = "NO SIGNAL ❌"
+    signal = f"""📈 BUY CALL
 
-        if pd.notna(rsi) and pd.notna(dma50) and pd.notna(vol_avg):
+Entry: {entry}
+SL: {sl}
+Target: {target}
+RSI: {round(rsi,1)}
+VWAP: {round(vwap,1)}"""
 
-            if (rsi < 30) and (price > dma50) and (vol > vol_avg):
-                signal = "BUY 🔥"
+# 📉 PUT
+elif price < vwap and rsi < 45 and price < low:
+    entry = round(price, 2)
+    sl = round(price * 0.90, 2)
+    target = round(price * 1.15, 2)
 
-            elif (rsi > 70) and (price < dma50):
-                signal = "SELL ⚠️"
+    signal = f"""📉 BUY PUT
 
-        # 📋 FULL INFO OUTPUT
-        result = f"""
-🔹 {stock}
-Price: ₹{round(price,2)}
-RSI: {round(rsi,2)}
-50DMA: {round(dma50,2)}
-200DMA: {round(dma200,2)}
-Volume: {int(vol)}
-Avg Vol: {int(vol_avg)}
-Trend: {trend}
-Signal: {signal}
--------------------------
-"""
-        results.append(result)
+Entry: {entry}
+SL: {sl}
+Target: {target}
+RSI: {round(rsi,1)}
+VWAP: {round(vwap,1)}"""
 
-    except Exception as e:
-        results.append(f"{stock} ❌ Error: {e}")
-
-# 📩 EMAIL CONTENT
-final_message = f"""
-📊 STOCK SCANNER REPORT
+# ===== MESSAGE =====
+msg = f"""⚡ NIFTY OPTION SIGNAL
 🕒 {datetime.now()}
 
-{''.join(results)}
+Price: {price}
+
+{signal}
 """
 
-msg = MIMEText(final_message)
-msg['Subject'] = "🔥 Daily Stock Report"
-msg['From'] = sender
-msg['To'] = receiver
+print(msg)
 
-# 📧 SEND EMAIL
-try:
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(sender, password)
-    server.sendmail(sender, receiver, msg.as_string())
-    server.quit()
-    print("✅ Email Sent Successfully")
-except Exception as e:
-    print("❌ Email Error:", e)
+send_telegram(msg)
