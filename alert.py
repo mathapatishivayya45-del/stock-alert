@@ -1,6 +1,6 @@
 import os
 import json
-import smtplib
+import smtpli
 import requests
 import pandas as pd
 import numpy as np
@@ -370,7 +370,7 @@ def generate_trade_signal(tech, options, news):
 # ============================================================
 def send_email(tech, options, news, trade):
     sender = os.environ.get("mathapatishivayya45@gmail.com")
-    password = os.environ.get("enit jinx evas ftdp")
+    password = os.environ.get("enitjinxevasftdp")
     receiver = os.environ.get("mathapatishivayya45@gmail.com", sender)
 
     now = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
