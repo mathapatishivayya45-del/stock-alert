@@ -1,4 +1,29 @@
-import yfinance as yf
+from datetime import datetime
+
+now = datetime.now()
+
+# Market timing check (IST approx)
+if now.hour < 9 or (now.hour == 9 and now.minute < 20):
+    msg = "⏳ Market not started properly"
+    
+    import smtplib
+    from email.mime.text import MIMEText
+
+    EMAIL = "mathapatishivayya45@gmail.com"
+    PASSWORD = os.environ.get("EMAIL_PASS")
+
+    message = MIMEText(msg)
+    message['Subject'] = "Market Wait"
+    message['From'] = EMAIL
+    message['To'] = EMAIL
+
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(EMAIL, PASSWORD)
+    server.sendmail(EMAIL, EMAIL, message.as_string())
+    server.quit()
+
+    exit()import yfinance as yf
 import pandas as pd
 import smtplib
 from email.mime.text import MIMEText
