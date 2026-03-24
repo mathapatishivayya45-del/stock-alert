@@ -369,9 +369,9 @@ def generate_trade_signal(tech, options, news):
 # 6. EMAIL SENDER
 # ============================================================
 def send_email(tech, options, news, trade):
-    sender = os.environ.get("GMAIL_USER")
-    password = os.environ.get("GMAIL_APP_PASSWORD")
-    receiver = os.environ.get("RECEIVER_EMAIL", sender)
+    sender = os.environ.get("mathapatishivayya45@gmail.com")
+    password = os.environ.get("enit jinx evas ftdp")
+    receiver = os.environ.get("mathapatishivayya45@gmail.com", sender)
 
     now = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
 
