@@ -1,8 +1,8 @@
-name: Stock Alert
+name: Option Alert
 
 on:
   schedule:
-    - cron: '50 3 * * *'   # 9:20 AM IST
+    - cron: '0 4 * * *'   # 9:30 AM IST
   workflow_dispatch:
 
 jobs:
@@ -10,18 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install libraries
-        run: pip install yfinance pandas
+      - run: pip install yfinance pandas
 
-      - name: Run script
-        run: python alert.py
+      - run: python alert.py
         env:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
